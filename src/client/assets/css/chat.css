@@ -7,12 +7,14 @@
     overflow-y: auto;
 }
 .card-header{
+    background-color: transparent !important;
     border-radius: 15px 15px 0 0 !important;
     border-bottom: 0 !important;
     text-align: center;
 }
 .card-footer{
-border-radius: 0 0 15px 15px !important;
+    background-color: transparent !important;
+    border-radius: 0 0 15px 15px !important;
     border-top: 0 !important;
 }
 .container{
@@ -36,6 +38,7 @@ background-color: #6100FF!important;
     color: white !important;
     cursor: pointer;
 }
+
 
 .send_btn:hover{
     background-color: #1C1B43 !important;

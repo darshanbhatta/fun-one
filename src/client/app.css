@@ -179,3 +179,67 @@ footer {
 .form-control::-moz-placeholder { color: rgba(255, 255, 255, 0.42) !important; }  /* Mozilla Firefox 19+ */
 .form-control:-ms-input-placeholder {color: rgba(255, 255, 255, 0.42) !important; }  /* Internet Explorer 10-11 */
 .form-control::-ms-input-placeholder { color: rgba(255, 255, 255, 0.42) !important; }  /* Microsoft Edge */
+
+.backCard {
+  width: 28px;
+  height: 40px;
+  margin-bottom: -25px;
+  transform: rotate(90deg);
+}
+
+.cardinGame {
+  transition: all .1s ease-in-out;
+  padding: 20px 10px 0px 0px;
+}
+
+.cardinGame:hover, .cardinGame:active {
+  transform: scale(1.2);
+}
+
+.drawCardMain {
+  transition: all .1s ease-in-out;
+}
+
+.drawCardMain:hover, .cardinGame:active {
+  transform: scale(1.2);
+}
+
+
+
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+}
+
+.colorSelect {
+  transition: all .1s ease-in-out;
+  margin: 20px 10px 10px 0px;
+  border-radius: 50px;
+  width: 80px;
+  text-align: center;
+  color: white;
+  height: 80px;
+  border: transparent;
+}
+
+.colorSelect:hover, .colorSelect:active {
+  transform: scale(1.2);
+}
+
+.drawCard {
+  transition: all .1s ease-in-out;
+  margin: 10px;
+  color: white;
+  height: 60px;
+  border-radius: 50px;
+  width: 60px;
+  padding: 10px;
+  background-color: #6100FF;
+  border: transparent;
+}
+
+.drawCard:hover, .drawCard:active{
+  transform: scale(1.2);
+}

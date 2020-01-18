@@ -4,7 +4,7 @@ const app = express();
 const socketIO = require("./socket-io");
 socketIO(app);
 
-app.use(express.static('dist'));
+app.use ("/img", express.static(__dirname + '/img'));
 app.get("/*", (req, res) => {
 	// starts React
 	res.sendFile(path.join(__dirname, "../../dist/index.html"), (err) => {

@@ -10,6 +10,7 @@ import Footer from "./components/footer";
 import Home from "./views/home";
 import Play from "./views/play";
 import LobbyPage from "./views/lobby_page";
+import GamePage from "./views/game";
 import SocketContext from './util/socket-context';
 import socketIOClient from "socket.io-client";
 const socket = socketIOClient(`${window.location.hostname}:4001`);
@@ -41,6 +42,7 @@ class App extends Component {
             <Route path="/join/:roomID?" render={(props) => <Play {... props} title = {"Join Game"}></Play>}>
             </Route>
             <Route path="/lobby" component={LobbyPage}/>
+            <Route path="/game" component={GamePage}/>
           </Switch>
           <Footer></Footer>
         </div>

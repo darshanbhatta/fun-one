@@ -2,9 +2,13 @@ const http = require("http");
 const socketIo = require("socket.io");
 const roomIDs = new Set();
 const roomMap = new Map();
+const roomIdMap = new Map();
 const ownerMap = new Map();
 const messageMap = new Map();
 let openRoom = generateRoomCode();
+
+const roomGameState = new Map();
+const Game = require("../game");
 
 function init(app) {
     const server = http.createServer(app);
@@ -13,7 +17,8 @@ function init(app) {
     io.on("connection", socket => {
         let roomCode = ""
         let userName = "";
-        console.log(`New client with ID: ${socket.conn.id} connected`);
+        const id = socket.conn.id;
+        console.log(`New client with ID: ${id} connected`);
         socket.on('createGame', (data) => {
             if (data.name) {
                 roomCode = generateRoomCode();
@@ -21,6 +26,7 @@ function init(app) {
                 socket.join(roomCode);
                 ownerMap.set(roomCode, userName);
                 roomMap.set(roomCode, new Set().add(userName));
+                roomIdMap.set(roomCode, new Set().add(id))
                 messageMap.set(roomCode, []);
                 console.log(`Created new lobby: ${roomCode}`);
                 io.to(roomCode).emit("newPlayer", { players: Array.from(roomMap.get(roomCode)), room: roomCode, messages: messageMap.get(roomCode) });
@@ -41,6 +47,7 @@ function init(app) {
                     roomCode = data.room;
                     userName = data.name.replace(" ", "");
                     roomMap.get(roomCode).add(userName);
+                    roomIdMap.get(roomCode).add(id);
                     io.to(roomCode).emit("newPlayer", { players: Array.from(roomMap.get(roomCode)), room: roomCode, messages: messageMap.get(roomCode) });
                 }
             }
@@ -53,10 +60,12 @@ function init(app) {
                     if (roomSet.has(data.name)) {
                         socket.emit("newPlayer", { "message": "Nickname taken, please choose a new one!" });
                     } else {
+                        const roomIDSet = roomIdMap.get(openRoom);
                         userName = data.name.replace(" ", "");
                         roomCode = openRoom;
                         socket.join(roomCode);
                         roomSet.add(data.name.replace(" ", ""));
+                        roomIDSet.add(id);
                         console.log(roomSet);
                         if (roomSet.size === 10) {
                             console.log("Start game!");
@@ -71,10 +80,13 @@ function init(app) {
                     messageMap.set(roomCode, []);
                     ownerMap.set(roomCode, data.name.replace(" ", ""));
                     roomMap.set(roomCode, new Set().add(data.name.replace(" ", "")));
+                    roomIdMap.set(roomCode, new Set().add(id));
+                    roomIDs.add(roomCode);
                 }
                 if (roomCode) {
                     io.to(roomCode).emit("newPlayer", { players: Array.from(roomMap.get(roomCode)), room: roomCode, messages: messageMap.get(roomCode) });
                 }
+                console.log(roomIdMap);
             }
         });
 
@@ -83,7 +95,53 @@ function init(app) {
                 if (ownerMap.get(roomCode) !== userName) {
                     socket.emit("startGame", { message: "Only the owner can start the game!" });
                 } else {
-                    io.to(roomCode).emit("startGame", {});
+                    const userNameID = getPlayerObject(Array.from(roomMap.get(roomCode)), Array.from(roomIdMap.get(roomCode)));
+                    const newGame = new Game(userNameID);
+                    roomGameState.set(roomCode, newGame);
+                    for (const id of newGame.playerIDs) {
+                        const payload = {
+                            player: newGame.players.get(id),
+                            players: newGame.publicPlayers,
+                            turnIndex: newGame.turnIndex,
+                            prevCard: newGame.prevCard,
+                        };
+                        io.to(id).emit("startGame", payload);
+                    }
+                    
+                }
+            }
+        });
+
+        socket.on("gameMove", (data) => {
+            console.log(data);
+            const gameObj = roomGameState.get(roomCode);
+            let moveData;
+            if (data.move === "playCard") {
+                moveData = gameObj.tryToMakeMove({id: id}, data.card);
+            } else if (data.move === "skip") {
+                moveData = gameObj.notToPlay({id: id});
+            } else if (data.move === true) {
+                moveData = gameObj.makeMove({id: id}, data.card);
+            } else {
+                moveData = gameObj.drawCard({id: id});
+            }
+            console.log(moveData);
+            if (moveData.message) {
+                socket.emit("gameData", moveData);
+            } else if (data.move === false) {
+                socket.emit("gameData", {player: gameObj.players.get(id)});
+            } else {
+                for (const id of gameObj.playerIDs) {
+                    const payload = {
+                        player: gameObj.players.get(id),
+                        players: gameObj.publicPlayers,
+                        turnIndex: gameObj.turnIndex,
+                        prevCard: gameObj.prevCard,
+                        announce: moveData.announce,
+                        global_action: moveData.global_action,
+
+                    };
+                    io.to(id).emit("gameData", payload);
                 }
             }
         });
@@ -103,25 +161,35 @@ function init(app) {
         });
 
         socket.on("playerLeave", () => {
-            removePlayer(roomCode, userName, socket, io);
+            removePlayer(roomCode, userName, socket, io, id);
         });
 
         socket.on("disconnect", () => {
             if (socket.socket)
                 socket.socket.reconnect();
-            removePlayer(roomCode, userName, socket, io);
+            removePlayer(roomCode, userName, socket, io, id);
         });
     });
     server.listen(4001, () => console.log(`SocketIO listening on port ${4001}`));
 }
 
-function removePlayer(roomCode, userName, socket, io) {
+function getPlayerObject (playerNames, playerIds) {
+    const obj = [];
+    for(let i = 0; i < playerNames.length; i++) {
+        obj.push({username: playerNames[i], id: playerIds[i]});
+    }
+    return obj;
+}
+
+function removePlayer(roomCode, userName, socket, io, id) {
     if (roomCode && userName) {
         console.log(`${userName} left room: ${roomCode}`);
         socket.leave(roomCode);
         const roomSet = roomMap.get(roomCode);
+        const roomIdSet = roomIdMap.get(roomCode);
         if (roomSet) {
             roomSet.delete(userName);
+            roomIdSet.delete(id);
             if (roomSet.size !== 0 && ownerMap.get(roomCode) === userName) {
                 const newOwner = roomMap.get(roomCode).values().next().value;
                 console.log(`New owner of ${roomCode} is ${newOwner}`);
@@ -130,6 +198,7 @@ function removePlayer(roomCode, userName, socket, io) {
             if (roomSet.size === 0) {
                 roomMap.delete(roomCode);
                 roomIDs.delete(roomCode);
+                roomIdMap.delete(roomCode);
                 ownerMap.delete(roomCode);
                 messageMap.delete(roomCode);
                 console.log(`No one in the room, deleting room ${roomCode}`);

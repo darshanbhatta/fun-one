@@ -16,16 +16,20 @@ class Chat extends Component {
             username: this.props.state.name,
         }
 
-        this.inputRef= React.createRef();
-
+        this.inputRef = React.createRef();
 
         this.props.socket.removeAllListeners("chat");
         this.props.socket.on("chat", (data) => {
             if (data.error) {
-                this.props.alert.show(data.error, {type: "error"});
+                this.props.alert.show(data.error, { type: "error" });
             } else {
+                try {
+                    this.scrollToBottom();
+                } catch (err) {
+                    console.log(err);
+                }
                 this.state.messages.push(data.message);
-                this.setState({messages: this.state.messages});
+                this.setState({ messages: this.state.messages });
             }
         });
 
@@ -33,34 +37,44 @@ class Chat extends Component {
         this.sendMessage = this.sendMessage.bind(this);
     }
 
+    componentDidMount () {
+        this.scrollToBottom();
+    }
+
     sendMessage() {
         if (this.state.message) {
-            this.props.socket.emit("chat", {message: this.state.message, name: this.state.username});
+            this.props.socket.emit("chat", { message: this.state.message, name: this.state.username });
             this.inputRef.current.value = "";
-            this.setState({message: ""});
+            this.setState({ message: "" });
         } else {
-            this.props.alert.show("Please type a message before sending!", {type: "error"});
+            this.props.alert.show("Please type a message before sending!", { type: "error" });
         }
 
     }
 
     handleChange(event) {
-        this.setState({message: event.target.value});
+        this.setState({ message: event.target.value });
     }
-    
+
     onKeyPress = (e) => {
         if (e.which === 13) {
-           e.preventDefault();
-           this.sendMessage();
+            e.preventDefault();
+            this.sendMessage();
         }
+    }
+
+    scrollToBottom() {
+        document.getElementById("lastMessage").scrollIntoView({
+            behavior: "smooth"
+          })
     }
 
     renderMessage(message, i) {
         const isCurrentUser = message.author === this.state.username;
-        return <div className={`d-flex justify-content-${isCurrentUser ? "end" : "start"} mb-3`} key = {i}>
+        return <div className={`d-flex justify-content-${isCurrentUser ? "end" : "start"} mb-3`} key={i}>
             <div className={`msg_container_${isCurrentUser ? "you" : "other"}`}>
                 {message.data}
-                <span className={`msg_author_${isCurrentUser ? "you" : "other"}`}>{message.author}{isCurrentUser ? "(You)" : ""}</span>
+                {!isCurrentUser && <span className={`msg_author_${isCurrentUser ? "you" : "other"}`}>{message.author}{isCurrentUser ? "(You)" : ""}</span>}
             </div>
         </div>;
     }
@@ -75,12 +89,14 @@ class Chat extends Component {
                     {this.state.messages.map((message, i) => {
                         return this.renderMessage(message, i);
                     })}
+                    <div id = {"lastMessage"} ref={(ref) => this.containerRef = ref}> </div>
+                  
                 </div>
                 <div className="card-footer">
                     <div className="input-group">
-                        <textarea onKeyPress = {this.onKeyPress} ref={this.inputRef} onChange={this.handleChange.bind(this)} spellCheck="true" className="form-control type_msg" placeholder="Type your message..."></textarea>
+                        <textarea onKeyPress={this.onKeyPress} ref={this.inputRef} onChange={this.handleChange.bind(this)} spellCheck="true" className="form-control type_msg" placeholder="Type your message..."></textarea>
                         <div className="input-group-append">
-                            <button onClick = {() => this.sendMessage()} className="input-group-text send_btn"><Send></Send></button>
+                            <button onClick={() => this.sendMessage()} className="input-group-text send_btn"><Send></Send></button>
                         </div>
                     </div>
                 </div>

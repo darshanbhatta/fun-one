@@ -10,6 +10,7 @@ import Crown from '../assets/img/crown.js';
 import SocketContext from '../util/socket-context'
 import { withAlert } from "react-alert";
 import ReactTooltip from 'react-tooltip'
+import { withRouter } from 'react-router';
 
 
 const PlayerItem = props => {
@@ -46,6 +47,7 @@ class PlayerView extends Component {
             if (data.message) {
                 this.props.alert.show(data.message, {type: "info"});
             } else {
+                this.setState({payload: {...data, name: this.props.name}});
                 this.setState({ message: "Game starting in 5", seconds: 5 });
                 this.timer = setInterval(this.countDown, 1000);
             }
@@ -81,6 +83,10 @@ class PlayerView extends Component {
         if (seconds == 0) {
             clearInterval(this.timer);
             this.props.alert.show("Game started!!!");
+            const payload = this.state.payload;
+            console.log(payload);
+            this.props.history.push({ pathname: '/game', state: { payload } });
+
         }
     }
 }
@@ -90,6 +96,7 @@ PlayerView.propTypes = {
     alert: PropTypes.object,
     socket: PropTypes.object,
     name: PropTypes.string,
+    history: PropTypes.object,
 };
 
 const PlayerViewWithSocket = props => (
@@ -98,4 +105,4 @@ const PlayerViewWithSocket = props => (
     </SocketContext.Consumer>
 );
 
-export default withAlert()(PlayerViewWithSocket);
+export default withRouter(withAlert()(PlayerViewWithSocket));

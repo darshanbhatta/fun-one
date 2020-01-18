@@ -40,6 +40,8 @@ function init(app) {
                     socket.emit("newPlayer", { "message": "Invalid room code!" });
                 } else if (roomMap.get(data.room).size > 10) {
                     socket.emit("newPlayer", { "message": "Room is full!" });
+                } else if (roomGameState.has(data.room)) {
+                    socket.emit("newPlayer", { "message": "Room has already started the game!" });
                 } else if (roomMap.get(data.room).has(data.name.replace(" ", ""))) {
                     socket.emit("newPlayer", { "message": "Nickname taken, please choose a new one!" });
                 } else {
@@ -55,6 +57,9 @@ function init(app) {
 
         socket.on("find", (data) => {
             if (data.name) {
+                if (roomGameState.has(openRoom)) {
+                    openRoom = generateRoomCode();
+                }
                 if (roomMap.has(openRoom)) {
                     const roomSet = roomMap.get(openRoom);
                     if (roomSet.has(data.name)) {
@@ -95,20 +100,23 @@ function init(app) {
                 if (ownerMap.get(roomCode) !== userName) {
                     socket.emit("startGame", { message: "Only the owner can start the game!" });
                 } else {
-                    const userNameID = getPlayerObject(Array.from(roomMap.get(roomCode)), Array.from(roomIdMap.get(roomCode)));
-                    const newGame = new Game(userNameID);
-                    roomGameState.set(roomCode, newGame);
-                    for (const id of newGame.playerIDs) {
-                        const payload = {
-                            player: newGame.players.get(id),
-                            players: newGame.publicPlayers,
-                            turnIndex: newGame.turnIndex,
-                            prevCard: newGame.prevCard,
-                        };
-                        io.to(id).emit("startGame", payload);
+                    if (!roomGameState.has(roomCode)) {
+                        const userNameID = getPlayerObject(Array.from(roomMap.get(roomCode)), Array.from(roomIdMap.get(roomCode)));
+                        const newGame = new Game(userNameID);
+                        roomGameState.set(roomCode, newGame);
+                        for (const id of newGame.playerIDs) {
+                            const payload = {
+                                player: newGame.players.get(id),
+                                players: newGame.publicPlayers,
+                                turnIndex: newGame.turnIndex,
+                                prevCard: newGame.prevCard,
+                            };
+                            io.to(id).emit("startGame", payload);
+                        }
+
                     }
-                    
                 }
+
             }
         });
 
@@ -116,20 +124,24 @@ function init(app) {
             console.log(data);
             const gameObj = roomGameState.get(roomCode);
             let moveData;
-            if (data.move === "playCard") {
-                moveData = gameObj.tryToMakeMove({id: id}, data.card);
+            if (data.move === "oneDone") {
+                moveData = gameObj.oneDone({ id: id, username: userName });
+            } else if (data.move === "oneStun") {
+                moveData = gameObj.oneStun({ id: id, username: userName });
+                console.log(moveData);
+            } else if (data.move === "playCard") {
+                moveData = gameObj.tryToMakeMove({ id: id }, data.card);
             } else if (data.move === "skip") {
-                moveData = gameObj.notToPlay({id: id});
+                moveData = gameObj.notToPlay({ id: id });
             } else if (data.move === true) {
-                moveData = gameObj.makeMove({id: id}, data.card);
+                moveData = gameObj.makeMove({ id: id }, data.card);
             } else {
-                moveData = gameObj.drawCard({id: id});
+                moveData = gameObj.drawCard({ id: id });
             }
-            console.log(moveData);
             if (moveData.message) {
                 socket.emit("gameData", moveData);
             } else if (data.move === false) {
-                socket.emit("gameData", {player: gameObj.players.get(id)});
+                socket.emit("gameData", { player: gameObj.players.get(id) });
             } else {
                 for (const id of gameObj.playerIDs) {
                     const payload = {
@@ -139,6 +151,7 @@ function init(app) {
                         prevCard: gameObj.prevCard,
                         announce: moveData.announce,
                         global_action: moveData.global_action,
+                        gameOver: moveData.gameOver,
 
                     };
                     io.to(id).emit("gameData", payload);
@@ -150,7 +163,7 @@ function init(app) {
             if (data.name === userName) {
                 const message = { data: data.message, author: userName };
                 messageMap.get(roomCode).push(message);
-                io.to(openRoom).emit("chat", { message: message});
+                io.to(openRoom).emit("chat", { message: message });
             } else {
                 socket.emit("chat", { error: "Something went wrong when sending message!" });
             }
@@ -159,6 +172,13 @@ function init(app) {
         socket.on("isInARoom", () => {
             socket.emit("isInARoom", roomCode ? roomCode : "");
         });
+
+        socket.on("isInAGame", () => {
+            console.log(roomGameState.has(roomCode));
+            socket.emit("isInAGame", roomGameState.has(roomCode));
+        });
+
+
 
         socket.on("playerLeave", () => {
             removePlayer(roomCode, userName, socket, io, id);
@@ -173,10 +193,10 @@ function init(app) {
     server.listen(4001, () => console.log(`SocketIO listening on port ${4001}`));
 }
 
-function getPlayerObject (playerNames, playerIds) {
+function getPlayerObject(playerNames, playerIds) {
     const obj = [];
-    for(let i = 0; i < playerNames.length; i++) {
-        obj.push({username: playerNames[i], id: playerIds[i]});
+    for (let i = 0; i < playerNames.length; i++) {
+        obj.push({ username: playerNames[i], id: playerIds[i] });
     }
     return obj;
 }
@@ -190,6 +210,34 @@ function removePlayer(roomCode, userName, socket, io, id) {
         if (roomSet) {
             roomSet.delete(userName);
             roomIdSet.delete(id);
+            if (roomGameState.has(roomCode)) {
+                const gameObj = roomGameState.get(roomCode);
+                const moveData = gameObj.removePlayer({ id: id });
+                if (gameObj.publicPlayers === 1) {
+                    roomMap.delete(roomCode);
+                    roomIDs.delete(roomCode);
+                    roomIdMap.delete(roomCode);
+                    ownerMap.delete(roomCode);
+                    messageMap.delete(roomCode);
+                    roomGameState.delete(roomCode);
+                    console.log(`No one in the room, deleting room ${roomCode}`);
+                    io.to(gameObj.playerIDs[0]).emit("gameData", { gameOver: true });
+                } else {
+                    for (const id of gameObj.playerIDs) {
+                        const payload = {
+                            player: gameObj.players.get(id),
+                            players: gameObj.publicPlayers,
+                            turnIndex: gameObj.turnIndex,
+                            prevCard: gameObj.prevCard,
+                            announce: moveData.announce,
+                            global_action: moveData.global_action,
+                            gameOver: moveData.gameOver,
+
+                        };
+                        io.to(id).emit("gameData", payload);
+                    }
+                }
+            }
             if (roomSet.size !== 0 && ownerMap.get(roomCode) === userName) {
                 const newOwner = roomMap.get(roomCode).values().next().value;
                 console.log(`New owner of ${roomCode} is ${newOwner}`);
@@ -201,6 +249,7 @@ function removePlayer(roomCode, userName, socket, io, id) {
                 roomIdMap.delete(roomCode);
                 ownerMap.delete(roomCode);
                 messageMap.delete(roomCode);
+                roomGameState.delete(roomCode);
                 console.log(`No one in the room, deleting room ${roomCode}`);
             } else {
                 console.log(roomMap.get(roomCode));

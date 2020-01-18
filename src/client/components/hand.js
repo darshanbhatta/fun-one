@@ -42,7 +42,7 @@ class Hand extends Component {
         console.log(this.props.cards);
         return (
             <div>
-                <Container style = {{marginTop: "20px"}}>
+                <Container style = {{marginBottom: "10px"}}>
                     <Row className="justify-content-center">
                         {this.props.cards.map((item, i) => { return this.renderCard(item, i) })}
                     </Row>

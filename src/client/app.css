@@ -189,7 +189,7 @@ footer {
 
 .cardinGame {
   transition: all .1s ease-in-out;
-  padding: 20px 10px 0px 0px;
+  padding: 0px 10px 10px 0px;
 }
 
 .cardinGame:hover, .cardinGame:active {
@@ -198,6 +198,7 @@ footer {
 
 .drawCardMain {
   transition: all .1s ease-in-out;
+  padding-right: 20px;
 }
 
 .drawCardMain:hover, .cardinGame:active {

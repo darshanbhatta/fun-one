@@ -24,6 +24,53 @@ class Game {
         this.turnIndex = Math.floor(Math.random() * players.length);
     }
 
+    removePlayer(player) {
+        const index = this.playerIDs.indexOf(player.id);
+        const playerObj = this.players.get(player.id);
+        if (index) {
+            if (this.turnIndex === index) {
+                this.turnIndex = this.getNextTurn();
+            }
+            this.players.delete(player.id);
+            this.publicPlayers.splice(index, 1);
+            this.playerIDs.splice(index, 1);
+        }
+        return {announce: `${playerObj.username} has left the game!`};
+    }
+
+    /**
+     * Tries to catch players that didn't call "one done"
+     */
+    oneStun(playerChallenge) {
+        let index = 0;
+        for (let [key, player] of this.players) {
+            console.log(player.cards.length + " " + !player.called + " " + index + " " + key)
+            if (player.cards.length === 1 && !player.called) {
+                for (let i = 0; i < 2; i++) {
+                    player.cards.push(this.deck.getCard());
+                    this.publicPlayers[index].cardCount++;
+                }
+                player.called = false;
+                console.log("this works");
+                return {announce: `${player.username} failed to call "one done" and was "one stunned" by ${playerChallenge.username}`};
+            }
+            index++;
+        }
+        console.log("why this running??/");
+        return {message: "No player has one card left or has already been called!"}
+    }
+
+    oneDone(player) {
+        const playerObj = this.players.get(player.id);
+        console.log(playerObj);
+        if (playerObj.cards.length === 1 && !playerObj.called) {
+            playerObj.called = true;
+            return {announce: `${playerObj.username} called "one done!"`}
+        }
+        return {message: "You do not have one card left or you have already called one done!"}
+
+    }
+
     /**
      * Starts the game by giving each player their hand
      * @param {Array} players 
@@ -39,6 +86,9 @@ class Game {
             playerIDs.push(player.id);
         }
         this.prevCard = this.deck.getCard();
+        while (this.prevCard.color === "none") {
+            this.prevCard = this.deck.getCard();
+        }
         return { map: playersMap, arr: playerIDs, publicArr: publicArr };
     }
 
@@ -62,9 +112,13 @@ class Game {
                 this.removeCardFromHand(playerCardIndex, player);
                 this.prevCard = card;
                 this.publicPlayers[this.turnIndex].cardCount--;
+                const gameStatus = this.isGameOver(this.publicPlayers[this.turnIndex].cardCount);
+                if (gameStatus) {
+                    return gameStatus;
+                }
                 // makes sure that the color selected is valid
                 card.color = newColor;
-                if (card.type === "draw_4") {
+                if (card.value === "draw_4") {
                     return this.draw4Handler(card);
                 } else {
                     return this.wildCardHandler(card);
@@ -74,6 +128,10 @@ class Game {
             } else if (card.color === this.prevCard.color || card.value === this.prevCard.value) {
                 this.removeCardFromHand(playerCardIndex, player);
                 this.publicPlayers[this.turnIndex].cardCount--;
+                const gameStatus = this.isGameOver(this.publicPlayers[this.turnIndex].cardCount);
+                if (gameStatus) {
+                    return gameStatus;
+                }
                 this.prevCard = card;
                 if (card.type === "number") {
                     return this.normalMoveHandler(card);
@@ -92,6 +150,13 @@ class Game {
             }
         } else {
             return { message: "You do not have this card in your deck!" };
+        }
+    }
+
+    isGameOver (cardCount) {
+        if (cardCount === 0) {
+            const playerObj = this.players.get(this.playerIDs[this.turnIndex]);
+            return { gameOver: true, announce: `${playerObj.username} just won! Game over!` }
         }
     }
 
@@ -158,6 +223,8 @@ class Game {
             return { message: "It's not your turn right now!" };
         }
         const playerObj = this.players.get(player.id);
+        // players need to call one done again if they get more than one card again!
+        playerObj.called = false;
         playerObj.cards.push(this.deck.getCard());
         this.publicPlayers[this.turnIndex].cardCount++;
         return { local_action: { id: player.id, playerObj: playerObj }, announce: `${playerObj.username} drew a card!` };
@@ -196,6 +263,7 @@ class Game {
             playerObj.cards.push(this.deck.getCard());
             this.publicPlayers[nextTurnIndex].cardCount++;
         }
+        playerObj.called = false;
         // we skip the player who had to draw
         this.turnIndex = this.getNextTurn();
         this.turnIndex = this.getNextTurn();
@@ -208,9 +276,15 @@ class Game {
      * @param {Object} card 
      */
     reverseHandler(card) {
-        this.turnFlow = this.turnFlow * -1;
-        const prevPlayerObj = this.players.get(this.playerIDs[this.turnIndex])
-        const nextTurnIndex = this.getNextTurn();
+        let nextTurnIndex = this.getNextTurn();
+        let currentIndex = this.turnIndex;
+        if (this.playerIDs.length > 2) {
+            this.turnFlow = this.turnFlow * -1;
+        } else {
+            this.turnIndex = nextTurnIndex;
+            nextTurnIndex = currentIndex;
+        }
+        const prevPlayerObj = this.players.get(this.playerIDs[currentIndex])
         const playerObj = this.players.get(this.playerIDs[nextTurnIndex]);
         return this.normalMoveHandler(card, `${prevPlayerObj.username} played a reverse card, it's now ${playerObj.username}'s turn!`);
     }
@@ -253,6 +327,7 @@ class Game {
             playerObj.cards.push(this.deck.getCard());
             this.publicPlayers[nextTurnIndex].cardCount++;
         }
+        playerObj.called = false;
         this.turnIndex = this.getNextTurn();
         this.turnIndex = this.getNextTurn();
         const currentPlayer = this.players.get(this.playerIDs[this.turnIndex]);

@@ -9,10 +9,9 @@ import {
 	NavLink,
 	Button,
 } from "reactstrap";
-import logo from "../assets/img/logo.png";
 import { withAlert } from "react-alert";
 import PropTypes from 'prop-types';
-
+import { baseURL } from "../config";
 
 const NavBar = (props) => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -25,7 +24,7 @@ const NavBar = (props) => {
 	return (
 		<div style={{ marginLeft: "8%", marginRight: "8%", marginTop: "1%" }}>
 			<Navbar color="#181737" dark expand="md">
-				<NavbarBrand href="/"> <img src={logo} style={{ width: 70 }} /></NavbarBrand>
+				<NavbarBrand href="/"> <img src={`${baseURL}/img/logo.png`} style={{ width: 70 }} /></NavbarBrand>
 				<NavbarToggler onClick={toggle} />
 				<Collapse isOpen={isOpen} navbar>
 					<Nav className="mr-auto" navbar>

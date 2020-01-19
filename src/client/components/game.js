@@ -18,7 +18,7 @@ class Game extends Component {
     constructor(props) {
         console.log(props);
         super(props);
-        if(!this.props.state) {
+        if (!this.props.state) {
             this.props.history.push({ pathname: '/' });
         }
         this.props.socket.emit("isInAGame");
@@ -35,8 +35,10 @@ class Game extends Component {
         this.props.socket.on("gameData", (data) => {
             if (data.message) {
                 this.props.alert.show(data.message, { type: "error", timeout: 5000 });
+            } else if(data.gameOver){
+                this.props.alert.show(data.announce, { type: "info", timeout: 5000 });
+                this.props.history.push({ pathname: '/' });
             } else if (!data.players) {
-                console.log(data.player);
                 this.setState({
                     player: data.player,
                 });
@@ -95,6 +97,7 @@ class Game extends Component {
                     }
                 });
             } else {
+                this.props.alert.show(data.announce, { type: "info", timeout: 5000 });
                 this.setState({
                     players: data.players,
                     player: data.player,
@@ -103,10 +106,8 @@ class Game extends Component {
                     round: this.state.round + 1,
 
                 });
-                this.props.alert.show(data.announce, { type: "info", timeout: 5000 });
-                if (data.gameOver) {
-                    this.props.history.push({ pathname: '/' });
-                }
+
+
             }
 
         });
@@ -124,21 +125,21 @@ class Game extends Component {
                 <h2 style={{ marginRight: "40px" }}>{`Round ${this.state.round}`}</h2>
                 <PlayerView players={this.state.players} name={this.state.name} currentIndex={this.state.turnIndex}></PlayerView>
                 <Row style={{ marginTop: "20px" }} className="justify-content-center">
-                    <Col  xs="auto">
+                    <Col xs="auto">
                         <div>
-                        <img className="drawCardMain" onClick={() => this.props.socket.emit("gameMove", { move: false })} src={`${baseURL}/img/cards/card_back.png`}></img>
-                        <img src={`${baseURL}${getCardImage(this.state.prevCard.cardID)}`}></img>      
+                            <img className="drawCardMain" onClick={() => this.props.socket.emit("gameMove", { move: false })} src={`${baseURL}/img/cards/card_back.png`}></img>
+                            <img src={`${baseURL}${getCardImage(this.state.prevCard.cardID)}`}></img>
                         </div>
 
                     </Col>
 
 
                 </Row>
-                <Row  className="justify-content-center" style = {{marginTop: "auto" ,marginBottom: "auto"}}xs="3">                    <div>
-                        <button onClick = {() => this.gameAction("oneDone")} style={{ background: "#6100FF", fontSize: "20px", fontWeight: "500" }} className="colorSelect">One Done</button>
-                        <button onClick = {() => this.gameAction("oneStun")} style={{ background: "#6100FF", fontSize: "20px", fontWeight: "500"}} className="colorSelect">One Stun</button>
-                    </div></Row>
-                <Hand cards={this.state.player.cards}></Hand>
+                <Row className="justify-content-center" style={{ marginTop: "auto", marginBottom: "auto" }}>                    <div>
+                    <button onClick={() => this.gameAction("oneDone")} style={{ background: "#6100FF", fontSize: "20px", fontWeight: "500" }} className="colorSelect">One Done</button>
+                    <button onClick={() => this.gameAction("oneStun")} style={{ background: "#6100FF", fontSize: "20px", fontWeight: "500" }} className="colorSelect">One Stun</button>
+                </div></Row>
+                {this.state.player && <Hand cards={this.state.player.cards}></Hand>}
             </Container>
         );
     }

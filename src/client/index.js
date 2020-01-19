@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './App';
 import 'bootstrap/dist/css/bootstrap.css';
-import "typeface-roboto";
 import { transitions, positions, Provider as AlertProvider } from 'react-alert'
 import AlertTemplate from './util/alert-template'
 

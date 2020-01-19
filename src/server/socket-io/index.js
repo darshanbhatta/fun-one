@@ -213,14 +213,10 @@ function removePlayer(roomCode, userName, socket, io, id) {
             if (roomGameState.has(roomCode)) {
                 const gameObj = roomGameState.get(roomCode);
                 const moveData = gameObj.removePlayer({ id: id });
-                if (gameObj.publicPlayers === 1) {
-                    roomMap.delete(roomCode);
-                    roomIDs.delete(roomCode);
-                    roomIdMap.delete(roomCode);
-                    ownerMap.delete(roomCode);
-                    messageMap.delete(roomCode);
+                console.log(gameObj.playerIDs);
+                if (gameObj.playerIDs.length === 1) {
                     roomGameState.delete(roomCode);
-                    console.log(`No one in the room, deleting room ${roomCode}`);
+                    console.log(`No one in the room, deleting game for ${roomCode}`);
                     io.to(gameObj.playerIDs[0]).emit("gameData", { gameOver: true });
                 } else {
                     for (const id of gameObj.playerIDs) {
@@ -252,8 +248,13 @@ function removePlayer(roomCode, userName, socket, io, id) {
                 roomGameState.delete(roomCode);
                 console.log(`No one in the room, deleting room ${roomCode}`);
             } else {
-                console.log(roomMap.get(roomCode));
-                io.to(roomCode).emit("newPlayer", { players: Array.from(roomMap.get(roomCode)), room: roomCode });
+                try {
+                    console.log(roomMap.get(roomCode));
+                    io.to(roomCode).emit("newPlayer", { players: Array.from(roomMap.get(roomCode)), room: roomCode });
+                } catch (err) {
+                    console.log(err);
+                }
+              
             }
         }
         roomCode = "";

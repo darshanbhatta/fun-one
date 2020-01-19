@@ -27,7 +27,7 @@ class Game {
     removePlayer(player) {
         const index = this.playerIDs.indexOf(player.id);
         const playerObj = this.players.get(player.id);
-        if (index) {
+        if (index !== -1) {
             if (this.turnIndex === index) {
                 this.turnIndex = this.getNextTurn();
             }

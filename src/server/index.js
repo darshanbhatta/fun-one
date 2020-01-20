@@ -24,8 +24,8 @@ app.get("/*", (req, res) => {
 const httpServer = http.createServer(app);
 
 try {
-	const privateKey  = fs.readFileSync('sslcert/server.key', 'utf8');
-	const certificate = fs.readFileSync('sslcert/server.crt', 'utf8');
+	const privateKey  = fs.readFileSync('sslcert/privkey.pem', 'utf8');
+	const certificate = fs.readFileSync('sslcert/fullchain.pem', 'utf8');
 	const credentials = {key: privateKey, cert: certificate};
 	const httpsServer = https.createServer(credentials, app);
 	httpsServer.listen(process.env.SPORT || 8080, () => console.log(`HTTPS Listening on port ${process.env.SPORT || 8080}!`));

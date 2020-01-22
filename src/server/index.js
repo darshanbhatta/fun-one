@@ -6,6 +6,7 @@ const socketIO = require("./socket-io");
 const fs = require('fs');
 var http = require('http');
 const https = require('https');
+const config = require("./config");
 
 socketIO(app);
 
@@ -20,17 +21,14 @@ app.get("/*", (req, res) => {
 	});
 });
 
-
-const httpServer = http.createServer(app);
-
 try {
-	const privateKey  = fs.readFileSync('sslcert/privkey.pem', 'utf8');
-	const certificate = fs.readFileSync('sslcert/fullchain.pem', 'utf8');
+	const privateKey  = fs.readFileSync(config.privateKey, 'utf8');
+	const certificate = fs.readFileSync(config.certificate, 'utf8');
 	const credentials = {key: privateKey, cert: certificate};
 	const httpsServer = https.createServer(credentials, app);
-	httpsServer.listen(process.env.SPORT || 8080, () => console.log(`HTTPS Listening on port ${process.env.SPORT || 8080}!`));
+	httpsServer.listen(config.httpsPort, () => console.log(`HTTPS Listening on port ${config.httpsPort}!`));
 } catch {
 	console.log("failed to listen to https")
+	const httpServer = http.createServer(app);
+	httpServer.listen(config.httpPort, () => console.log(`HTTP Listening on port ${config.httpsPort}!`));
 }
-
-httpServer.listen(process.env.PORT || 8080, () => console.log(`HTTP Listening on port ${process.env.PORT || 8080}!`));

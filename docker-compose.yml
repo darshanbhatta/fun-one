@@ -1,0 +1,11 @@
+version: '3'
+services:
+  fun-one:
+    build:
+        network: host
+    environment:
+            - PRIVATE_KEY=""
+            - CERTIFICATE=""
+            - HTTPS_PORT=8080
+            - HTTP_PORT=8080
+    image: fun-one-prod
